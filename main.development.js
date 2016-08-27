@@ -138,6 +138,15 @@ function showInformationMessage(message, title) {
   })
 }
 
+// can't really sign out via pogobuf
+// but this causes requests to respond with 102
+// as if you were signed out
+async function signOut() {
+  client = new pogobuf.Client()
+  client.setAuthInfo('google', '12345')
+  await client.init()
+}
+
 // GENERAL
 ipcMain.on('error-message', (event, errorMessage) => {
   showErrorMessage(errorMessage)
@@ -220,6 +229,10 @@ ipcMain.on('check-and-delete-credentials', () => {
   }
 })
 
+let METHOD = null
+let USERNAME = null
+let PASSWORD = null
+
 ipcMain.on('pokemon-login', async (event, method, username, password) => {
   console.log('[+] Attempting to login')
   let login
@@ -230,10 +243,13 @@ ipcMain.on('pokemon-login', async (event, method, username, password) => {
   }
 
   try {
+    METHOD = method
+    USERNAME = username
+    PASSWORD = password
     const token = await login.login(username, password)
 
     client.setAuthInfo(method, token)
-    client.init()
+    await client.init()
 
     event.sender.send('pokemon-logged-in')
   } catch (error) {
@@ -468,7 +484,7 @@ ipcMain.on('favorite-pokemon', async (event, id, isFavorite) => {
   }
 })
 
-ipcMain.on('rename-pokemon', async (event, id, nickname) => {
+async function renamePokemon(event, id, nickname) {
   try {
     await client.nicknamePokemon(id, nickname)
 
@@ -477,6 +493,29 @@ ipcMain.on('rename-pokemon', async (event, id, nickname) => {
     event.sender.send('rename-pokemon-complete', id, nickname)
   } catch (error) {
     console.error(error)
+    if (error.code === 'ETIMEDOUT') {
+      console.log('[+] Attempting to relogin')
+      client = new pogobuf.Client()
+
+      const LoginMethod = METHOD === 'google' ? pogobuf.GoogleLogin : pogobuf.PTCLogin
+      const login = new LoginMethod()
+
+      try {
+        const token = await login.login(USERNAME, PASSWORD)
+        console.log('info', METHOD, token)
+        client.setAuthInfo(METHOD, token)
+        await client.init()
+        console.log('calling rename again')
+        renamePokemon(event, id, nickname)
+      } catch (e) {
+        console.error(e)
+      }
+    }
   }
+}
+
+ipcMain.on('rename-pokemon', (event, id, nickname) => {
+  signOut()
+  renamePokemon(event, id, nickname)
 })
 // END OF POKEMON
