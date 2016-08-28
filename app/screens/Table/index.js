@@ -15,7 +15,10 @@ import SpeciesCounter from './components/SpeciesPokemonCounter'
 import CheckCounter from './components/CheckCounter'
 
 import confirmDialog from '../ConfirmationDialog'
-import { updateStatus } from '../../actions'
+import {
+  updateStatus,
+  logout
+} from '../../actions'
 import {
   Immutable,
   Organize
@@ -80,7 +83,8 @@ function setBackgroundImage(team) {
 const Table = React.createClass({
 
   propTypes: {
-    updateStatus: PropTypes.func.isRequired
+    updateStatus: PropTypes.func.isRequired,
+    logout: PropTypes.func.isRequired
   },
 
   childContextTypes: {
@@ -217,6 +221,13 @@ const Table = React.createClass({
                 value="Evolve"
                 onClick={this.handleEvolve}
               />
+              {" "}
+              <input
+                type="button"
+                className="btn btn-default"
+                value="Sign Out"
+                onClick={this.handleSignOut}
+              />
             </span>
           </h1>
 
@@ -312,6 +323,8 @@ const Table = React.createClass({
       pokemon: selectedPokemon,
       secondaryText: 'Transfer All',
       onClickSecondary: () => {
+        if (runningCheck()) return
+
         this.handleCountDown(selectedPokemon, 'Transfer', selectedPokemon.length * 2.5)
 
         selectedPokemon.forEach((pokemon, index) => {
@@ -321,6 +334,8 @@ const Table = React.createClass({
 
       primaryText: 'Transfer without favorites',
       onClickPrimary: () => {
+        if (runningCheck()) return
+
         const filteredPokemon = selectedPokemon.filter((p) => {
           const isntFavorite = !p.favorite ? -1 : 0 // TODO stop this -1/0 garbage
 
@@ -349,6 +364,8 @@ const Table = React.createClass({
       primaryText: 'Evolve Selected',
       onClickSecondary: () => {},
       onClickPrimary: () => {
+        if (runningCheck()) return
+
         this.handleCountDown(selectedPokemon, 'Evolve', selectedPokemon.length * 27.5)
 
         selectedPokemon.forEach((pokemon, index) => {
@@ -466,7 +483,11 @@ const Table = React.createClass({
 
   handleToggleShowAllSpecies() {
     this.speciesTable.toggleShowAllSpecies()
+  },
+
+  handleSignOut() {
+    this.props.logout()
   }
 })
 
-export default connect(null, (dispatch => bindActionCreators({ updateStatus }, dispatch)))(Table)
+export default connect(null, (dispatch => bindActionCreators({ updateStatus, logout }, dispatch)))(Table)
